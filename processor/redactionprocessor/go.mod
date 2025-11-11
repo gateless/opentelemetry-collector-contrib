@@ -1,4 +1,4 @@
-module github.com/open-telemetry/opentelemetry-collector-contrib/processor/redactionprocessor
+module github.com/gateless/opentelemetry-collector-contrib/processor/redactionprocessor
 
 go 1.24.0
 
