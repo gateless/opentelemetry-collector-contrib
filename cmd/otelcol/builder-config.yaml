@@ -10,7 +10,7 @@ dist:
   module: github.com/gateless/opentelemetry-collector-contrib/cmd/otelcol
   name: otelcol
   description: OpenTelemetry Collector Custom binary, production distribution.
-  version: 0.139.0-dev
+  version: 0.139.0-gtls.1
   output_path: ./cmd/otelcol
 
 extensions:
