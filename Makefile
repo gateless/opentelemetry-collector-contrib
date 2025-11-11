@@ -427,7 +427,7 @@ genotelcol: $(BUILDER)
 # Build the Collector executable.
 .PHONY: otelcol
 otelcol: genotelcol
-	cd ./cmd/otelcol && GO111MODULE=on CGO_ENABLED=0 $(GOCMD) build -trimpath -o ../../bin/otelcol_$(GOOS)_$(GOARCH)$(EXTENSION) \
+	cd ./cmd/otelcol && GO111MODULE=on CGO_ENABLED=0 $(GOCMD) build -trimpath -o ../../bin/otelcol \
 		-tags $(GO_BUILD_TAGS) .
 
 # Build the Collector executable without the symbol table, debug information, and the DWARF symbol table.
