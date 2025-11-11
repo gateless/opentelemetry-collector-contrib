@@ -8,7 +8,7 @@ import (
 
 var (
 	Type      = component.MustNewType("redaction")
-	ScopeName = "github.com/open-telemetry/opentelemetry-collector-contrib/processor/redactionprocessor"
+	ScopeName = "github.com/gateless/opentelemetry-collector-contrib/processor/redactionprocessor"
 )
 
 const (

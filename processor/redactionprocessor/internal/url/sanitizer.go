@@ -1,7 +1,7 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
-package url // import "github.com/open-telemetry/opentelemetry-collector-contrib/processor/redactionprocessor/internal/url"
+package url // import "github.com/gateless/opentelemetry-collector-contrib/processor/redactionprocessor/internal/url"
 
 import (
 	"fmt"
