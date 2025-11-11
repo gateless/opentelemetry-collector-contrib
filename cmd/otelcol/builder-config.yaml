@@ -1,0 +1,59 @@
+# NOTE:
+# This builder configuration is NOT used to build any official binary.
+# To see the builder manifests used for official binaries,
+# check https://github.com/open-telemetry/opentelemetry-collector-releases
+#
+# For the OpenTelemetry Collector Contrib official distribution sources, check
+# https://github.com/open-telemetry/opentelemetry-collector-releases/tree/main/distributions/otelcol-contrib
+
+dist:
+  module: github.com/gateless/opentelemetry-collector-contrib/cmd/otelcol
+  name: otelcol
+  description: OpenTelemetry Collector Custom binary, production distribution.
+  version: 0.139.0-dev
+  output_path: ./cmd/otelcol
+
+extensions:
+  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/extension/datadogextension v0.139.0
+  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/extension/healthcheckextension v0.139.0
+  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/extension/observer/dockerobserver v0.139.0
+  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/extension/observer/ecsobserver v0.139.0
+  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/extension/observer/hostobserver v0.139.0
+
+exporters:
+  - gomod: go.opentelemetry.io/collector/exporter/debugexporter v0.139.1-0.20251106125304-a6a176660925
+  - gomod: go.opentelemetry.io/collector/exporter/otlpexporter v0.139.1-0.20251106125304-a6a176660925
+  - gomod: go.opentelemetry.io/collector/exporter/otlphttpexporter v0.139.1-0.20251106125304-a6a176660925
+  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/exporter/datadogexporter v0.139.0
+
+processors:
+  - gomod: go.opentelemetry.io/collector/processor/batchprocessor v0.139.1-0.20251106125304-a6a176660925
+  - gomod: go.opentelemetry.io/collector/processor/memorylimiterprocessor v0.139.1-0.20251106125304-a6a176660925
+  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/processor/attributesprocessor v0.139.0
+  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/processor/redactionprocessor v0.139.0
+  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/processor/resourcedetectionprocessor v0.139.0
+  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/processor/resourceprocessor v0.139.0
+  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/processor/transformprocessor v0.139.0
+
+receivers:
+  - gomod: go.opentelemetry.io/collector/receiver/otlpreceiver v0.139.1-0.20251106125304-a6a176660925
+  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/receiver/awsecscontainermetricsreceiver v0.139.0
+  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/receiver/hostmetricsreceiver v0.139.0
+  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/receiver/prometheusreceiver v0.139.0
+
+connectors:
+  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/connector/datadogconnector v0.139.0
+
+providers:
+  - gomod: go.opentelemetry.io/collector/confmap/provider/envprovider v1.45.1-0.20251106125304-a6a176660925
+  - gomod: go.opentelemetry.io/collector/confmap/provider/fileprovider v1.45.1-0.20251106125304-a6a176660925
+  - gomod: go.opentelemetry.io/collector/confmap/provider/httpprovider v1.45.1-0.20251106125304-a6a176660925
+  - gomod: go.opentelemetry.io/collector/confmap/provider/httpsprovider v1.45.1-0.20251106125304-a6a176660925
+  - gomod: go.opentelemetry.io/collector/confmap/provider/yamlprovider v1.45.1-0.20251106125304-a6a176660925
+  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/confmap/provider/aesprovider v0.139.0
+  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/confmap/provider/s3provider v0.139.0
+  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/confmap/provider/secretsmanagerprovider v0.139.0
+# When using `make genotelcontribcol`, the `replaces` content is appended to this
+# file before passing it to OCB, to ensure that local versions are used for all
+# Contrib modules.
+replaces:
