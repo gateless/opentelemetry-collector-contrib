@@ -1,7 +1,7 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
-package redactionprocessor // import "github.com/gateless/opentelemetry-collector-contrib/processor/redactionprocessor"
+package redactionprocessor // import "github.com/open-telemetry/opentelemetry-collector-contrib/processor/redactionprocessor"
 
 import (
 	"encoding"
@@ -9,8 +9,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/gateless/opentelemetry-collector-contrib/processor/redactionprocessor/internal/db"
-	"github.com/gateless/opentelemetry-collector-contrib/processor/redactionprocessor/internal/url"
+	"github.com/open-telemetry/opentelemetry-collector-contrib/processor/redactionprocessor/internal/db"
+	"github.com/open-telemetry/opentelemetry-collector-contrib/processor/redactionprocessor/internal/url"
 )
 
 var _ encoding.TextUnmarshaler = (*HashFunction)(nil)

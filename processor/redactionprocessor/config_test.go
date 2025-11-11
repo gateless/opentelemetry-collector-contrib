@@ -14,8 +14,8 @@ import (
 	"go.opentelemetry.io/collector/confmap/confmaptest"
 	"go.opentelemetry.io/collector/confmap/xconfmap"
 
-	"github.com/gateless/opentelemetry-collector-contrib/processor/redactionprocessor/internal/db"
-	"github.com/gateless/opentelemetry-collector-contrib/processor/redactionprocessor/internal/metadata"
+	"github.com/open-telemetry/opentelemetry-collector-contrib/processor/redactionprocessor/internal/db"
+	"github.com/open-telemetry/opentelemetry-collector-contrib/processor/redactionprocessor/internal/metadata"
 )
 
 func TestLoadConfig(t *testing.T) {

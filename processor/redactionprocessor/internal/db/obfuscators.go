@@ -1,7 +1,7 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
-package db // import "github.com/gateless/opentelemetry-collector-contrib/processor/redactionprocessor/internal/db"
+package db // import "github.com/open-telemetry/opentelemetry-collector-contrib/processor/redactionprocessor/internal/db"
 
 import "github.com/DataDog/datadog-agent/pkg/obfuscate"
 
