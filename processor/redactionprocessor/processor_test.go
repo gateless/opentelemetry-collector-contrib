@@ -17,8 +17,8 @@ import (
 	"go.opentelemetry.io/collector/pdata/ptrace"
 	"go.uber.org/zap/zaptest"
 
-	"github.com/open-telemetry/opentelemetry-collector-contrib/processor/redactionprocessor/internal/db"
-	"github.com/open-telemetry/opentelemetry-collector-contrib/processor/redactionprocessor/internal/url"
+	"github.com/gateless/opentelemetry-collector-contrib/processor/redactionprocessor/internal/db"
+	"github.com/gateless/opentelemetry-collector-contrib/processor/redactionprocessor/internal/url"
 )
 
 type testConfig struct {

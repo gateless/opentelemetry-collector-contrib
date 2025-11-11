@@ -3,7 +3,7 @@
 
 //go:generate mdatagen metadata.yaml
 
-package redactionprocessor // import "github.com/open-telemetry/opentelemetry-collector-contrib/processor/redactionprocessor"
+package redactionprocessor // import "github.com/gateless/opentelemetry-collector-contrib/processor/redactionprocessor"
 
 import (
 	"context"
@@ -14,7 +14,7 @@ import (
 	"go.opentelemetry.io/collector/processor"
 	"go.opentelemetry.io/collector/processor/processorhelper"
 
-	"github.com/open-telemetry/opentelemetry-collector-contrib/processor/redactionprocessor/internal/metadata"
+	"github.com/gateless/opentelemetry-collector-contrib/processor/redactionprocessor/internal/metadata"
 )
 
 // NewFactory creates a factory for the redaction processor.

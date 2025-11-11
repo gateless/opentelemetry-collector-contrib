@@ -1,7 +1,7 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
-package redactionprocessor // import "github.com/open-telemetry/opentelemetry-collector-contrib/processor/redactionprocessor"
+package redactionprocessor // import "github.com/gateless/opentelemetry-collector-contrib/processor/redactionprocessor"
 
 //nolint:gosec
 import (
@@ -22,8 +22,8 @@ import (
 	"go.uber.org/zap"
 	"golang.org/x/crypto/sha3"
 
-	"github.com/open-telemetry/opentelemetry-collector-contrib/processor/redactionprocessor/internal/db"
-	"github.com/open-telemetry/opentelemetry-collector-contrib/processor/redactionprocessor/internal/url"
+	"github.com/gateless/opentelemetry-collector-contrib/processor/redactionprocessor/internal/db"
+	"github.com/gateless/opentelemetry-collector-contrib/processor/redactionprocessor/internal/url"
 )
 
 const attrValuesSeparator = ","
