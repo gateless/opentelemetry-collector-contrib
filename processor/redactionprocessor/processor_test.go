@@ -378,8 +378,8 @@ func getLogBodyWithDebugAttrs(outLogs plog.Logs) pcommon.Map {
 func TestRedactSummaryDebugHashMD5(t *testing.T) {
 	tc := testConfig{
 		config: &Config{
-			AllowedKeys:        []string{"id", "group", "name", "group.id", "member (id)", "token_some", "api_key_some", "email"},
-			BlockedValues:      []string{"4[0-9]{12}(?:[0-9]{3})?"},
+			AllowedKeys:        []string{"id", "group", "name", "data", "group.id", "member (id)", "token_some", "api_key_some", "email"},
+			BlockedValues:      []string{"4[0-9]{12}(?:[0-9]{3})?", "\\b(?P<mask>[0-9]{5})(?:[0-9]{4})\\b"},
 			HashFunction:       MD5,
 			IgnoredKeys:        []string{"safe_attribute"},
 			BlockedKeyPatterns: []string{".*token.*", ".*api_key.*"},
@@ -392,12 +392,14 @@ func TestRedactSummaryDebugHashMD5(t *testing.T) {
 		},
 		masked: map[string]pcommon.Value{
 			"name": pcommon.NewValueStr("placeholder 4111111111111111"),
+			"data": pcommon.NewValueStr("with ssn 123456789"),
 		},
 		ignored: map[string]pcommon.Value{
 			"safe_attribute": pcommon.NewValueStr("harmless 4111111111111112"),
 		},
 		redacted: map[string]pcommon.Value{
 			"credit_card": pcommon.NewValueStr("4111111111111111"),
+			"ssn":         pcommon.NewValueStr("123456789"),
 		},
 		blockedKeys: map[string]pcommon.Value{
 			"token_some":   pcommon.NewValueStr("tokenize"),
@@ -461,15 +463,17 @@ func TestRedactSummaryDebugHashMD5(t *testing.T) {
 		assert.True(t, ok)
 		assert.Equal(t, int64(len(tc.ignored)), ignoredKeyCount.Int())
 
-		blockedKeys := []string{"api_key_some", "name", "token_some"}
+		blockedKeys := []string{"api_key_some", "data", "name", "token_some"}
 		maskedKeys, ok := attr.Get(redactionMaskedKeys)
 		assert.True(t, ok)
 		assert.Equal(t, strings.Join(blockedKeys, ","), maskedKeys.Str())
 		maskedValueCount, ok := attr.Get(redactionMaskedCount)
 		assert.True(t, ok)
-		assert.Equal(t, int64(3), maskedValueCount.Int())
+		assert.Equal(t, int64(4), maskedValueCount.Int())
 		value, _ := attr.Get("name")
 		assert.Equal(t, "placeholder 5910f4ea0062a0e29afd3dccc741e3ce", value.Str())
+		value, _ = attr.Get("data")
+		assert.Equal(t, "with ssn 827ccb0eea8a706c4c34a16891f84e7b6789", value.Str())
 		value, _ = attr.Get("api_key_some")
 		assert.Equal(t, "93a699237950bde9eb9d25c7ead025f3", value.Str())
 		value, _ = attr.Get("token_some")

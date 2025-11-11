@@ -380,6 +380,61 @@ func (s *redaction) processAttrs(_ context.Context, attributes pcommon.Map) {
 	s.addMetaAttrs(ignoredKeys, attributes, "", redactionIgnoredCount)
 }
 
+func ReplaceAllMatchedGroups(s string, re *regexp.Regexp, repl func(text string) string) string {
+	names := re.SubexpNames() // index 0 is the whole match; 1.. are groups
+
+	var out strings.Builder
+	last := 0
+
+	for _, m := range re.FindAllStringSubmatchIndex(s, -1) {
+		ms, me := m[0], m[1]
+		// write text before this match
+		out.WriteString(s[last:ms])
+
+		var seg strings.Builder
+		cur := ms
+
+		for g := 1; g <= re.NumSubexp(); g++ {
+			gs, ge := m[2*g], m[2*g+1]
+			if gs < 0 || ge < 0 {
+				// this group didn't participate in this match
+				continue
+			}
+
+			// keep text between previous cursor and group start
+			seg.WriteString(s[cur:gs])
+
+			name := names[g] // "" if unnamed
+			if name != "" {
+				seg.WriteString(repl(s[gs:ge]))
+			} else {
+				seg.WriteString(s[gs:ge])
+			}
+
+			cur = ge
+		}
+
+		// tail inside the overall match
+		seg.WriteString(s[cur:me])
+
+		out.WriteString(seg.String())
+		last = me
+	}
+
+	// remainder after last match
+	out.WriteString(s[last:])
+	return out.String()
+}
+
+func allEmptyStrings(groups []string) bool {
+	for _, group := range groups {
+		if group != "" {
+			return false
+		}
+	}
+	return true
+}
+
 //nolint:gosec
 func (s *redaction) maskValue(val string, regex *regexp.Regexp) string {
 	hashFunc := func(match string) string {
@@ -394,7 +449,13 @@ func (s *redaction) maskValue(val string, regex *regexp.Regexp) string {
 			return "****"
 		}
 	}
-	return regex.ReplaceAllStringFunc(val, hashFunc)
+
+	groups := regex.SubexpNames()
+	if len(groups) == 0 || (allEmptyStrings(groups)) {
+		return regex.ReplaceAllStringFunc(val, hashFunc)
+	} else {
+		return ReplaceAllMatchedGroups(val, regex, hashFunc)
+	}
 }
 
 func hashString(input string, hasher hash.Hash) string {
