@@ -380,49 +380,54 @@ func (s *redaction) processAttrs(_ context.Context, attributes pcommon.Map) {
 	s.addMetaAttrs(ignoredKeys, attributes, "", redactionIgnoredCount)
 }
 
-func ReplaceAllMatchedGroups(s string, re *regexp.Regexp, repl func(text string) string) string {
-	names := re.SubexpNames() // index 0 is the whole match; 1.. are groups
+func ReplaceAllMatchedGroups(s string, re *regexp.Regexp, names []string,  repl func(text string) string) string {
+	matches := re.FindAllStringSubmatchIndex(s, -1)
 
+	if len(matches) == 0 {
+		return s
+	}
+
+	numSubexp := re.NumSubexp()
+
+	// Pre-allocate with estimated size
 	var out strings.Builder
+	out.Grow(len(s))
+
 	last := 0
 
-	for _, m := range re.FindAllStringSubmatchIndex(s, -1) {
+	for _, m := range matches {
 		ms, me := m[0], m[1]
 		// write text before this match
 		out.WriteString(s[last:ms])
 
-		var seg strings.Builder
 		cur := ms
-
-		for g := 1; g <= re.NumSubexp(); g++ {
+		for g := 1; g <= numSubexp; g++ {
 			gs, ge := m[2*g], m[2*g+1]
 			if gs < 0 || ge < 0 {
 				// this group didn't participate in this match
 				continue
 			}
 
-			// Skip groups that are behind current position (nested groups)
+			// Skip groups that start before our current position (nested/overlapping groups)
 			if gs < cur {
 				continue
 			}
 
-			// keep text between previous cursor and group start
-			seg.WriteString(s[cur:gs])
+			// Write text between previous cursor and group start
+			out.WriteString(s[cur:gs])
 
-			name := names[g] // "" if unnamed
-			if name != "" {
-				seg.WriteString(repl(s[gs:ge]))
+			// Write group content (replaced or original)
+			if names[g] != "" {
+				out.WriteString(repl(s[gs:ge]))
 			} else {
-				seg.WriteString(s[gs:ge])
+				out.WriteString(s[gs:ge])
 			}
 
 			cur = ge
 		}
 
-		// tail inside the overall match
-		seg.WriteString(s[cur:me])
-
-		out.WriteString(seg.String())
+		// Write tail inside the overall match
+		out.WriteString(s[cur:me])
 		last = me
 	}
 
@@ -459,7 +464,7 @@ func (s *redaction) maskValue(val string, regex *regexp.Regexp) string {
 	if len(groups) == 0 || (allEmptyStrings(groups)) {
 		return regex.ReplaceAllStringFunc(val, hashFunc)
 	} else {
-		return ReplaceAllMatchedGroups(val, regex, hashFunc)
+		return ReplaceAllMatchedGroups(val, regex, groups, hashFunc)
 	}
 }
 
