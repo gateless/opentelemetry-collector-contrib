@@ -16,7 +16,7 @@ func BenchmarkReplaceAllMatchedGroups_SSN(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = ReplaceAllMatchedGroups(input, re, repl)
+		_ = ReplaceAllMatchedGroups(input, re, re.SubexpNames(), repl)
 	}
 }
 
@@ -28,7 +28,7 @@ func BenchmarkReplaceAllMatchedGroups_Email(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = ReplaceAllMatchedGroups(input, re, repl)
+		_ = ReplaceAllMatchedGroups(input, re, re.SubexpNames(), repl)
 	}
 }
 
@@ -40,7 +40,7 @@ func BenchmarkReplaceAllMatchedGroups_MultipleMatches(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = ReplaceAllMatchedGroups(input, re, repl)
+		_ = ReplaceAllMatchedGroups(input, re, re.SubexpNames(), repl)
 	}
 }
 
@@ -56,7 +56,7 @@ func BenchmarkReplaceAllMatchedGroups_LargeText(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = ReplaceAllMatchedGroups(input, re, repl)
+		_ = ReplaceAllMatchedGroups(input, re, re.SubexpNames(), repl)
 	}
 }
 
@@ -68,7 +68,7 @@ func BenchmarkReplaceAllMatchedGroups_NoMatch(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = ReplaceAllMatchedGroups(input, re, repl)
+		_ = ReplaceAllMatchedGroups(input, re, re.SubexpNames(), repl)
 	}
 }
 
@@ -80,7 +80,7 @@ func BenchmarkReplaceAllMatchedGroups_JSON(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = ReplaceAllMatchedGroups(input, re, repl)
+		_ = ReplaceAllMatchedGroups(input, re, re.SubexpNames(), repl)
 	}
 }
 

@@ -109,7 +109,7 @@ func TestReplaceAllMatchedGroups(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			re := regexp.MustCompile(tt.pattern)
-			result := ReplaceAllMatchedGroups(tt.input, re, tt.repl)
+			result := ReplaceAllMatchedGroups(tt.input, re, re.SubexpNames(), tt.repl)
 			assert.Equal(t, tt.expected, result)
 		})
 	}
@@ -120,7 +120,7 @@ func TestReplaceAllMatchedGroups_EdgeCases(t *testing.T) {
 		// Pattern: named group for digits, required letters after
 		re := regexp.MustCompile(`(?P<mask>\d+)[a-z]+`)
 		input := "abc123def"
-		result := ReplaceAllMatchedGroups(input, re, func(s string) string { return "***" })
+		result := ReplaceAllMatchedGroups(input, re, re.SubexpNames(), func(s string) string { return "***" })
 		// The pattern matches "123def" and replaces "123" with "***", keeping "def"
 		assert.Equal(t, "abc***def", result)
 	})
@@ -129,7 +129,7 @@ func TestReplaceAllMatchedGroups_EdgeCases(t *testing.T) {
 		// Nested named groups - both will be replaced
 		re := regexp.MustCompile(`(?P<outer>(?P<inner>\d{3})-\d{2})-\d{4}`)
 		input := "SSN: 123-45-6789"
-		result := ReplaceAllMatchedGroups(input, re, func(s string) string { return "***" })
+		result := ReplaceAllMatchedGroups(input, re, re.SubexpNames(), func(s string) string { return "***" })
 		// Both outer and inner groups are named, so both get replaced
 		assert.NotEqual(t, "", result)
 		assert.Contains(t, result, "***")
@@ -139,7 +139,7 @@ func TestReplaceAllMatchedGroups_EdgeCases(t *testing.T) {
 		// Pattern that doesn't overlap in practice
 		re := regexp.MustCompile(`(?P<mask>\d)`)
 		input := "a1b2c3"
-		result := ReplaceAllMatchedGroups(input, re, func(s string) string { return "*" })
+		result := ReplaceAllMatchedGroups(input, re, re.SubexpNames(), func(s string) string { return "*" })
 		assert.Equal(t, "a*b*c*", result)
 	})
 }
@@ -152,7 +152,7 @@ func TestReplaceAllMatchedGroups_Performance(t *testing.T) {
 			input += "SSN: 123-45-6789 and 987-65-4321. "
 		}
 		
-		result := ReplaceAllMatchedGroups(input, re, func(s string) string { return "***" })
+		result := ReplaceAllMatchedGroups(input, re, re.SubexpNames(), func(s string) string { return "***" })
 		
 		// Should have 200 replacements (2 per iteration * 100)
 		assert.Contains(t, result, "SSN: ***6789")
@@ -166,7 +166,7 @@ func TestReplaceAllMatchedGroups_Correctness(t *testing.T) {
 		// Pattern: mask the user part (only word chars), keep the domain
 		re := regexp.MustCompile(`\b(?P<user>\w+)(@\w+\.\w+)`)
 		input := "Email: user@example.com"
-		result := ReplaceAllMatchedGroups(input, re, func(s string) string { return "***" })
+		result := ReplaceAllMatchedGroups(input, re, re.SubexpNames(), func(s string) string { return "***" })
 		
 		assert.Equal(t, "Email: ***@example.com", result)
 		assert.Contains(t, result, "@example.com")
@@ -176,7 +176,7 @@ func TestReplaceAllMatchedGroups_Correctness(t *testing.T) {
 	t.Run("handles special regex characters in replacement", func(t *testing.T) {
 		re := regexp.MustCompile(`(?P<mask>\d+)`)
 		input := "Number: 123"
-		result := ReplaceAllMatchedGroups(input, re, func(s string) string { return "$$$" })
+		result := ReplaceAllMatchedGroups(input, re, re.SubexpNames(), func(s string) string { return "$$$" })
 
 		assert.Equal(t, "Number: $$$", result)
 	})
@@ -186,7 +186,7 @@ func TestReplaceAllMatchedGroups_Correctness(t *testing.T) {
 		input := "12 34 56"
 		var matches []string
 		
-		result := ReplaceAllMatchedGroups(input, re, func(s string) string {
+		result := ReplaceAllMatchedGroups(input, re, re.SubexpNames(), func(s string) string {
 			matches = append(matches, s)
 			return "[" + s + "]"
 		})
