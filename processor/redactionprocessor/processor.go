@@ -401,6 +401,11 @@ func ReplaceAllMatchedGroups(s string, re *regexp.Regexp, repl func(text string)
 				continue
 			}
 
+			// Skip groups that are behind current position (nested groups)
+			if gs < cur {
+				continue
+			}
+
 			// keep text between previous cursor and group start
 			seg.WriteString(s[cur:gs])
 
