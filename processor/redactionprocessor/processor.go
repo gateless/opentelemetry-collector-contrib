@@ -28,6 +28,8 @@ import (
 
 const attrValuesSeparator = ","
 
+var matchAllRegex = regexp.MustCompile(".*")
+
 type redaction struct {
 	// Attribute keys allowed in a span
 	allowList map[string]string
@@ -192,6 +194,9 @@ func (s *redaction) processLogBody(ctx context.Context, body pcommon.Value, attr
 	switch body.Type() {
 	case pcommon.ValueTypeMap:
 		var redactedBodyKeys []string
+		// Cache regex check results
+		hasBlockedKeyPatterns := len(s.blockKeyRegexList) > 0
+		
 		body.Map().Range(func(k string, v pcommon.Value) bool {
 			if s.shouldIgnoreKey(k) {
 				ignoredKeys = append(ignoredKeys, k)
@@ -201,9 +206,9 @@ func (s *redaction) processLogBody(ctx context.Context, body pcommon.Value, attr
 				redactedBodyKeys = append(redactedBodyKeys, k)
 				return true
 			}
-			if s.shouldMaskKey(k) {
+			if hasBlockedKeyPatterns && s.shouldMaskKeyUnchecked(k) {
 				maskedKeys = append(maskedKeys, k)
-				v.SetStr(s.maskValue(v.Str(), regexp.MustCompile(".*")))
+				v.SetStr(s.maskValue(v.Str(), matchAllRegex))
 				return true
 			}
 			s.redactLogBodyRecursive(ctx, k, v, &redactedKeys, &maskedKeys, &allowedKeys, &ignoredKeys)
@@ -214,12 +219,19 @@ func (s *redaction) processLogBody(ctx context.Context, body pcommon.Value, attr
 			redactedKeys = append(redactedKeys, k)
 		}
 	case pcommon.ValueTypeSlice:
-		for i := 0; i < body.Slice().Len(); i++ {
-			s.redactLogBodyRecursive(ctx, fmt.Sprintf("[%d]", i), body.Slice().At(i), &redactedKeys, &maskedKeys, &allowedKeys, &ignoredKeys)
+		sliceLen := body.Slice().Len()
+		for i := 0; i < sliceLen; i++ {
+			// Use a string builder to avoid allocation on each iteration
+			keyPath := "[" + fmt.Sprintf("%d", i) + "]"
+			s.redactLogBodyRecursive(ctx, keyPath, body.Slice().At(i), &redactedKeys, &maskedKeys, &allowedKeys, &ignoredKeys)
 		}
 	default:
 		strVal := body.AsString()
-		if s.shouldAllowValue(strVal) {
+		// Early return for empty strings
+		if strVal == "" {
+			return
+		}
+		if len(s.allowRegexList) > 0 && s.shouldAllowValueUnchecked(strVal) {
 			allowedKeys = append(allowedKeys, "body")
 			return
 		}
@@ -240,8 +252,13 @@ func (s *redaction) redactLogBodyRecursive(ctx context.Context, key string, valu
 	switch value.Type() {
 	case pcommon.ValueTypeMap:
 		var redactedCurrentValueKeys []string
+		// Cache regex check results outside the loop
+		hasBlockedKeyPatterns := len(s.blockKeyRegexList) > 0
+		
 		value.Map().Range(func(k string, v pcommon.Value) bool {
-			keyWithPath := fmt.Sprintf("%s.%s", key, k)
+			// Build key path with minimal allocations
+			keyWithPath := key + "." + k
+			
 			if s.shouldIgnoreKey(k) {
 				*ignoredKeys = append(*ignoredKeys, keyWithPath)
 				return true
@@ -250,9 +267,9 @@ func (s *redaction) redactLogBodyRecursive(ctx context.Context, key string, valu
 				redactedCurrentValueKeys = append(redactedCurrentValueKeys, k)
 				return true
 			}
-			if s.shouldMaskKey(k) {
+			if hasBlockedKeyPatterns && s.shouldMaskKeyUnchecked(k) {
 				*maskedKeys = append(*maskedKeys, keyWithPath)
-				v.SetStr(s.maskValue(v.Str(), regexp.MustCompile(".*")))
+				v.SetStr(s.maskValue(v.Str(), matchAllRegex))
 				return true
 			}
 			s.redactLogBodyRecursive(ctx, keyWithPath, v, redactedKeys, maskedKeys, allowedKeys, ignoredKeys)
@@ -260,17 +277,23 @@ func (s *redaction) redactLogBodyRecursive(ctx context.Context, key string, valu
 		})
 		for _, k := range redactedCurrentValueKeys {
 			value.Map().Remove(k)
-			keyWithPath := fmt.Sprintf("%s.%s", key, k)
+			keyWithPath := key + "." + k
 			*redactedKeys = append(*redactedKeys, keyWithPath)
 		}
 	case pcommon.ValueTypeSlice:
-		for i := 0; i < value.Slice().Len(); i++ {
-			keyWithPath := fmt.Sprintf("%s.[%d]", key, i)
+		sliceLen := value.Slice().Len()
+		for i := 0; i < sliceLen; i++ {
+			// Build array index path with minimal allocations
+			keyWithPath := key + ".[" + fmt.Sprintf("%d", i) + "]"
 			s.redactLogBodyRecursive(ctx, keyWithPath, value.Slice().At(i), redactedKeys, maskedKeys, allowedKeys, ignoredKeys)
 		}
 	default:
 		strVal := value.AsString()
-		if s.shouldAllowValue(strVal) {
+		// Early return for empty strings
+		if strVal == "" {
+			return
+		}
+		if len(s.allowRegexList) > 0 && s.shouldAllowValueUnchecked(strVal) {
 			*allowedKeys = append(*allowedKeys, key)
 			return
 		}
@@ -328,6 +351,12 @@ func (s *redaction) processResourceMetric(ctx context.Context, rm pmetric.Resour
 // processAttrs redacts the attributes of a resource span or a span
 func (s *redaction) processAttrs(_ context.Context, attributes pcommon.Map) {
 	// TODO: Use the context for recording metrics
+	
+	// Early return if no attributes to process
+	if attributes.Len() == 0 {
+		return
+	}
+
 	var redactedKeys, maskedKeys, allowedKeys, ignoredKeys []string
 
 	// Identify attributes to redact and mask in the following sequence
@@ -338,6 +367,15 @@ func (s *redaction) processAttrs(_ context.Context, attributes pcommon.Map) {
 	// This sequence satisfies these performance constraints:
 	// - Only range through all attributes once
 	// - Don't mask any values if the whole attribute is slated for deletion
+	
+	// Cache flags to avoid repeated config/field access
+	hasBlockedKeyPatterns := len(s.blockKeyRegexList) > 0
+	hasAllowedValues := len(s.allowRegexList) > 0
+	hasBlockedValues := len(s.blockRegexList) > 0
+	hasURLSanitizer := s.urlSanitizer != nil
+	hasDBObfuscator := s.dbObfuscator.HasObfuscators()
+	needsProcessing := hasBlockedValues || hasURLSanitizer || hasDBObfuscator
+	
 	for k, value := range attributes.All() {
 		if s.shouldIgnoreKey(k) {
 			ignoredKeys = append(ignoredKeys, k)
@@ -347,25 +385,36 @@ func (s *redaction) processAttrs(_ context.Context, attributes pcommon.Map) {
 			redactedKeys = append(redactedKeys, k)
 			continue
 		}
+		
+		// Get string value once
 		strVal := value.Str()
-		if s.config.RedactAllTypes {
+		if s.config.RedactAllTypes && strVal == "" {
 			strVal = value.AsString()
 		}
+		
+		// Skip empty strings early
+		if strVal == "" {
+			continue
+		}
 
-		if s.shouldAllowValue(strVal) {
+		if hasAllowedValues && s.shouldAllowValueUnchecked(strVal) {
 			allowedKeys = append(allowedKeys, k)
 			continue
 		}
-		if s.shouldMaskKey(k) {
+		if hasBlockedKeyPatterns && s.shouldMaskKeyUnchecked(k) {
 			maskedKeys = append(maskedKeys, k)
-			maskedValue := s.maskValue(strVal, regexp.MustCompile(".*"))
+			maskedValue := s.maskValue(strVal, matchAllRegex)
 			value.SetStr(maskedValue)
 			continue
 		}
-		processedString := s.processStringValueForAttribute(strVal, k)
-		if processedString != strVal {
-			maskedKeys = append(maskedKeys, k)
-			value.SetStr(processedString)
+		
+		// Only process if we have sanitizers or blocked values
+		if needsProcessing {
+			processedString := s.processStringValueForAttribute(strVal, k)
+			if processedString != strVal {
+				maskedKeys = append(maskedKeys, k)
+				value.SetStr(processedString)
+			}
 		}
 	}
 
@@ -380,7 +429,27 @@ func (s *redaction) processAttrs(_ context.Context, attributes pcommon.Map) {
 	s.addMetaAttrs(ignoredKeys, attributes, "", redactionIgnoredCount)
 }
 
-func ReplaceAllMatchedGroups(s string, re *regexp.Regexp, names []string,  repl func(text string) string) string {
+// shouldMaskKeyUnchecked is an optimized version that doesn't check if list is empty
+func (s *redaction) shouldMaskKeyUnchecked(k string) bool {
+	for _, compiledRE := range s.blockKeyRegexList {
+		if compiledRE.MatchString(k) {
+			return true
+		}
+	}
+	return false
+}
+
+// shouldAllowValueUnchecked is an optimized version that doesn't check if list is empty
+func (s *redaction) shouldAllowValueUnchecked(strVal string) bool {
+	for _, compiledRE := range s.allowRegexList {
+		if compiledRE.MatchString(strVal) {
+			return true
+		}
+	}
+	return false
+}
+
+func ReplaceAllMatchedGroups(s string, re *regexp.Regexp, names []string, repl func(text string) string) string {
 	matches := re.FindAllStringSubmatchIndex(s, -1)
 
 	if len(matches) == 0 {
@@ -483,10 +552,17 @@ func (s *redaction) addMetaAttrs(redactedAttrs []string, attributes pcommon.Map,
 	// Record summary as span attributes, empty string for ignored items
 	if s.config.Summary == debug && valuesAttr != "" {
 		if existingVal, found := attributes.Get(valuesAttr); found && existingVal.Str() != "" {
-			redactedAttrs = append(redactedAttrs, strings.Split(existingVal.Str(), attrValuesSeparator)...)
+			existingKeys := strings.Split(existingVal.Str(), attrValuesSeparator)
+			// Pre-allocate with exact size needed
+			combined := make([]string, 0, len(redactedAttrs)+len(existingKeys))
+			combined = append(combined, redactedAttrs...)
+			combined = append(combined, existingKeys...)
+			sort.Strings(combined)
+			attributes.PutStr(valuesAttr, strings.Join(combined, attrValuesSeparator))
+		} else {
+			sort.Strings(redactedAttrs)
+			attributes.PutStr(valuesAttr, strings.Join(redactedAttrs, attrValuesSeparator))
 		}
-		sort.Strings(redactedAttrs)
-		attributes.PutStr(valuesAttr, strings.Join(redactedAttrs, attrValuesSeparator))
 	}
 	if s.config.Summary == info || s.config.Summary == debug {
 		if existingVal, found := attributes.Get(countAttr); found {
@@ -497,33 +573,48 @@ func (s *redaction) addMetaAttrs(redactedAttrs []string, attributes pcommon.Map,
 }
 
 func (s *redaction) processStringValueForAttribute(strVal, attributeKey string) string {
-	for _, compiledRE := range s.blockRegexList {
-		match := compiledRE.MatchString(strVal)
-		if match {
-			strVal = s.maskValue(strVal, compiledRE)
+	// Early return if string is empty
+	if strVal == "" {
+		return strVal
+	}
+
+	// Check for blocked regex patterns - only iterate if there are patterns
+	if len(s.blockRegexList) > 0 {
+		for _, compiledRE := range s.blockRegexList {
+			if compiledRE.MatchString(strVal) {
+				strVal = s.maskValue(strVal, compiledRE)
+			}
 		}
 	}
 
+	// Apply URL sanitization if configured and attribute matches
 	if s.urlSanitizer != nil {
-		strVal = s.urlSanitizer.SanitizeAttributeURL(strVal, attributeKey)
+		newVal := s.urlSanitizer.SanitizeAttributeURL(strVal, attributeKey)
+		if newVal != strVal {
+			strVal = newVal
+		}
 	}
 
+	// Apply DB obfuscation if configured
 	if s.dbObfuscator.HasObfuscators() {
 		obfuscatedQuery, err := s.dbObfuscator.ObfuscateAttribute(strVal, attributeKey)
-		if err != nil {
-			return strVal
+		if err == nil && obfuscatedQuery != strVal {
+			strVal = obfuscatedQuery
 		}
-		strVal = obfuscatedQuery
 	}
 
 	return strVal
 }
 
 func (s *redaction) processStringValueForLogBody(strVal string) string {
+	// Early return if string is empty
+	if strVal == "" {
+		return strVal
+	}
+
 	// Mask any blocked values for the other attributes
 	for _, compiledRE := range s.blockRegexList {
-		match := compiledRE.MatchString(strVal)
-		if match {
+		if compiledRE.MatchString(strVal) {
 			strVal = s.maskValue(strVal, compiledRE)
 		}
 	}
@@ -534,19 +625,22 @@ func (s *redaction) processStringValueForLogBody(strVal string) string {
 
 	if s.dbObfuscator.HasObfuscators() {
 		obfuscatedQuery, err := s.dbObfuscator.Obfuscate(strVal)
-		if err != nil {
-			return strVal
+		if err == nil {
+			strVal = obfuscatedQuery
 		}
-		strVal = obfuscatedQuery
 	}
 
 	return strVal
 }
 
 func (s *redaction) shouldMaskKey(k string) bool {
+	// Early return if no blocked key patterns
+	if len(s.blockKeyRegexList) == 0 {
+		return false
+	}
 	// Mask any blocked keys for the other attributes
 	for _, compiledRE := range s.blockKeyRegexList {
-		if match := compiledRE.MatchString(k); match {
+		if compiledRE.MatchString(k) {
 			return true
 		}
 	}
@@ -554,9 +648,13 @@ func (s *redaction) shouldMaskKey(k string) bool {
 }
 
 func (s *redaction) shouldAllowValue(strVal string) bool {
+	// Early return if no allowed value patterns or empty string
+	if len(s.allowRegexList) == 0 || strVal == "" {
+		return false
+	}
 	// Allow any values matching the allowed list regex
 	for _, compiledRE := range s.allowRegexList {
-		if match := compiledRE.MatchString(strVal); match {
+		if compiledRE.MatchString(strVal) {
 			return true
 		}
 	}
