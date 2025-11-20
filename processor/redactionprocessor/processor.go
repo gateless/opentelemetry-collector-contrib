@@ -11,9 +11,13 @@ import (
 	"encoding/hex"
 	"fmt"
 	"hash"
+	"os"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
+	"sync"
+	"sync/atomic"
 
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/plog"
@@ -26,9 +30,27 @@ import (
 	"github.com/open-telemetry/opentelemetry-collector-contrib/processor/redactionprocessor/internal/url"
 )
 
-const attrValuesSeparator = ","
+const (
+	attrValuesSeparator = ","
+)
 
-var matchAllRegex = regexp.MustCompile(".*")
+var (
+	matchAllRegex = regexp.MustCompile(".*")
+	// Maximum number of keys to cache for blocked key pattern matching
+	// Default is 1000, but can be overridden via REDACTION_MAX_KEY_MASK_CACHE_SIZE environment variable
+	maxKeyMaskCacheSize = getMaxKeyMaskCacheSize()
+)
+
+// getMaxKeyMaskCacheSize reads the maximum cache size from environment variable or returns default
+func getMaxKeyMaskCacheSize() int {
+	const defaultSize = 1000
+	if envVal := os.Getenv("REDACTION_MAX_KEY_MASK_CACHE_SIZE"); envVal != "" {
+		if size, err := strconv.Atoi(envVal); err == nil && size > 0 {
+			return size
+		}
+	}
+	return defaultSize
+}
 
 type redaction struct {
 	// Attribute keys allowed in a span
@@ -41,8 +63,14 @@ type redaction struct {
 	allowRegexList map[string]*regexp.Regexp
 	// Attribute keys blocked in a span
 	blockKeyRegexList map[string]*regexp.Regexp
+	// Cache for blocked key pattern matching results (key -> shouldMask)
+	keyMaskCache sync.Map
+	// Atomic counter for keyMaskCache size
+	keyMaskCacheSize atomic.Int64
 	// Hash function to hash blocked values
 	hashFunction HashFunction
+	// Cached hash function to avoid closure allocation on every call
+	cachedHashFunc func(string) string
 	// Redaction processor configuration
 	config *Config
 	// Logger
@@ -83,17 +111,40 @@ func newRedaction(ctx context.Context, config *Config, logger *zap.Logger) (*red
 	}
 	dbObfuscator := db.NewObfuscator(config.DBSanitizer)
 
+	// Pre-create the hash function to avoid allocating closures on every maskValue call
+	var cachedHashFunc func(string) string
+	switch config.HashFunction {
+	case SHA1:
+		cachedHashFunc = func(match string) string {
+			return hashString(match, sha1.New())
+		}
+	case SHA3:
+		cachedHashFunc = func(match string) string {
+			return hashString(match, sha3.New256())
+		}
+	case MD5:
+		cachedHashFunc = func(match string) string {
+			return hashString(match, md5.New())
+		}
+	default:
+		cachedHashFunc = func(match string) string {
+			return "****"
+		}
+	}
+
 	return &redaction{
 		allowList:         allowList,
 		ignoreList:        ignoreList,
 		blockRegexList:    blockRegexList,
 		allowRegexList:    allowRegexList,
 		blockKeyRegexList: blockKeysRegexList,
-		hashFunction:      config.HashFunction,
-		config:            config,
-		logger:            logger,
-		urlSanitizer:      urlSanitizer,
-		dbObfuscator:      dbObfuscator,
+		// keyMaskCache is a sync.Map, no initialization needed
+		hashFunction:   config.HashFunction,
+		cachedHashFunc: cachedHashFunc,
+		config:         config,
+		logger:         logger,
+		urlSanitizer:   urlSanitizer,
+		dbObfuscator:   dbObfuscator,
 	}, nil
 }
 
@@ -189,17 +240,28 @@ func (s *redaction) processResourceLog(ctx context.Context, rl plog.ResourceLogs
 }
 
 func (s *redaction) processLogBody(ctx context.Context, body pcommon.Value, attributes pcommon.Map) {
+	// Only allocate tracking slices if we need them based on summary level
+	needsDetailedTracking := s.config.Summary == debug || s.config.Summary == info
 	var redactedKeys, maskedKeys, allowedKeys, ignoredKeys []string
+	if needsDetailedTracking {
+		// Pre-allocate with reasonable capacity
+		redactedKeys = make([]string, 0, 8)
+		maskedKeys = make([]string, 0, 8)
+		allowedKeys = make([]string, 0, 8)
+		ignoredKeys = make([]string, 0, 8)
+	}
 
 	switch body.Type() {
 	case pcommon.ValueTypeMap:
 		var redactedBodyKeys []string
 		// Cache regex check results
 		hasBlockedKeyPatterns := len(s.blockKeyRegexList) > 0
-		
+
 		body.Map().Range(func(k string, v pcommon.Value) bool {
 			if s.shouldIgnoreKey(k) {
-				ignoredKeys = append(ignoredKeys, k)
+				if needsDetailedTracking {
+					ignoredKeys = append(ignoredKeys, k)
+				}
 				return true
 			}
 			if s.shouldRedactKey(k) {
@@ -207,23 +269,30 @@ func (s *redaction) processLogBody(ctx context.Context, body pcommon.Value, attr
 				return true
 			}
 			if hasBlockedKeyPatterns && s.shouldMaskKeyUnchecked(k) {
-				maskedKeys = append(maskedKeys, k)
+				if needsDetailedTracking {
+					maskedKeys = append(maskedKeys, k)
+				}
 				v.SetStr(s.maskValue(v.Str(), matchAllRegex))
 				return true
 			}
-			s.redactLogBodyRecursive(ctx, k, v, &redactedKeys, &maskedKeys, &allowedKeys, &ignoredKeys)
+			s.redactLogBodyRecursive(ctx, k, v, &redactedKeys, &maskedKeys, &allowedKeys, &ignoredKeys, needsDetailedTracking)
 			return true
 		})
 		for _, k := range redactedBodyKeys {
 			body.Map().Remove(k)
-			redactedKeys = append(redactedKeys, k)
+			if needsDetailedTracking {
+				redactedKeys = append(redactedKeys, k)
+			}
 		}
 	case pcommon.ValueTypeSlice:
 		sliceLen := body.Slice().Len()
 		for i := 0; i < sliceLen; i++ {
-			// Use a string builder to avoid allocation on each iteration
-			keyPath := "[" + fmt.Sprintf("%d", i) + "]"
-			s.redactLogBodyRecursive(ctx, keyPath, body.Slice().At(i), &redactedKeys, &maskedKeys, &allowedKeys, &ignoredKeys)
+			// Only build key path if detailed tracking is needed
+			var keyPath string
+			if needsDetailedTracking {
+				keyPath = "[" + strconv.Itoa(i) + "]"
+			}
+			s.redactLogBodyRecursive(ctx, keyPath, body.Slice().At(i), &redactedKeys, &maskedKeys, &allowedKeys, &ignoredKeys, needsDetailedTracking)
 		}
 	default:
 		strVal := body.AsString()
@@ -232,12 +301,16 @@ func (s *redaction) processLogBody(ctx context.Context, body pcommon.Value, attr
 			return
 		}
 		if len(s.allowRegexList) > 0 && s.shouldAllowValueUnchecked(strVal) {
-			allowedKeys = append(allowedKeys, "body")
+			if needsDetailedTracking {
+				allowedKeys = append(allowedKeys, "body")
+			}
 			return
 		}
 		processedValue := s.processStringValueForLogBody(strVal)
 		if strVal != processedValue {
-			maskedKeys = append(maskedKeys, "body")
+			if needsDetailedTracking {
+				maskedKeys = append(maskedKeys, "body")
+			}
 			body.SetStr(processedValue)
 		}
 	}
@@ -248,19 +321,22 @@ func (s *redaction) processLogBody(ctx context.Context, body pcommon.Value, attr
 	s.addMetaAttrs(ignoredKeys, attributes, "", redactionBodyIgnoredCount)
 }
 
-func (s *redaction) redactLogBodyRecursive(ctx context.Context, key string, value pcommon.Value, redactedKeys, maskedKeys, allowedKeys, ignoredKeys *[]string) {
+func (s *redaction) redactLogBodyRecursive(ctx context.Context, key string, value pcommon.Value, redactedKeys, maskedKeys, allowedKeys, ignoredKeys *[]string, needsDetailedTracking bool) {
 	switch value.Type() {
 	case pcommon.ValueTypeMap:
 		var redactedCurrentValueKeys []string
 		// Cache regex check results outside the loop
 		hasBlockedKeyPatterns := len(s.blockKeyRegexList) > 0
-		
+
 		value.Map().Range(func(k string, v pcommon.Value) bool {
-			// Build key path with minimal allocations
-			keyWithPath := key + "." + k
-			
 			if s.shouldIgnoreKey(k) {
-				*ignoredKeys = append(*ignoredKeys, keyWithPath)
+				if needsDetailedTracking {
+					if key != "" {
+						*ignoredKeys = append(*ignoredKeys, key+"."+k)
+					} else {
+						*ignoredKeys = append(*ignoredKeys, k)
+					}
+				}
 				return true
 			}
 			if s.shouldRedactKey(k) {
@@ -268,24 +344,51 @@ func (s *redaction) redactLogBodyRecursive(ctx context.Context, key string, valu
 				return true
 			}
 			if hasBlockedKeyPatterns && s.shouldMaskKeyUnchecked(k) {
-				*maskedKeys = append(*maskedKeys, keyWithPath)
+				if needsDetailedTracking {
+					if key != "" {
+						*maskedKeys = append(*maskedKeys, key+"."+k)
+					} else {
+						*maskedKeys = append(*maskedKeys, k)
+					}
+				}
 				v.SetStr(s.maskValue(v.Str(), matchAllRegex))
 				return true
 			}
-			s.redactLogBodyRecursive(ctx, keyWithPath, v, redactedKeys, maskedKeys, allowedKeys, ignoredKeys)
+			// Only build key path if needed for tracking or recursion
+			var keyWithPath string
+			if needsDetailedTracking {
+				if key != "" {
+					keyWithPath = key + "." + k
+				} else {
+					keyWithPath = k
+				}
+			}
+			s.redactLogBodyRecursive(ctx, keyWithPath, v, redactedKeys, maskedKeys, allowedKeys, ignoredKeys, needsDetailedTracking)
 			return true
 		})
 		for _, k := range redactedCurrentValueKeys {
 			value.Map().Remove(k)
-			keyWithPath := key + "." + k
-			*redactedKeys = append(*redactedKeys, keyWithPath)
+			if needsDetailedTracking {
+				if key != "" {
+					*redactedKeys = append(*redactedKeys, key+"."+k)
+				} else {
+					*redactedKeys = append(*redactedKeys, k)
+				}
+			}
 		}
 	case pcommon.ValueTypeSlice:
 		sliceLen := value.Slice().Len()
 		for i := 0; i < sliceLen; i++ {
-			// Build array index path with minimal allocations
-			keyWithPath := key + ".[" + fmt.Sprintf("%d", i) + "]"
-			s.redactLogBodyRecursive(ctx, keyWithPath, value.Slice().At(i), redactedKeys, maskedKeys, allowedKeys, ignoredKeys)
+			// Only build key path if detailed tracking is needed
+			var keyWithPath string
+			if needsDetailedTracking {
+				if key != "" {
+					keyWithPath = key + ".[" + strconv.Itoa(i) + "]"
+				} else {
+					keyWithPath = "[" + strconv.Itoa(i) + "]"
+				}
+			}
+			s.redactLogBodyRecursive(ctx, keyWithPath, value.Slice().At(i), redactedKeys, maskedKeys, allowedKeys, ignoredKeys, needsDetailedTracking)
 		}
 	default:
 		strVal := value.AsString()
@@ -294,12 +397,16 @@ func (s *redaction) redactLogBodyRecursive(ctx context.Context, key string, valu
 			return
 		}
 		if len(s.allowRegexList) > 0 && s.shouldAllowValueUnchecked(strVal) {
-			*allowedKeys = append(*allowedKeys, key)
+			if needsDetailedTracking {
+				*allowedKeys = append(*allowedKeys, key)
+			}
 			return
 		}
 		processedValue := s.processStringValueForLogBody(strVal)
 		if strVal != processedValue {
-			*maskedKeys = append(*maskedKeys, key)
+			if needsDetailedTracking {
+				*maskedKeys = append(*maskedKeys, key)
+			}
 			value.SetStr(processedValue)
 		}
 	}
@@ -375,13 +482,15 @@ func (s *redaction) processAttrs(_ context.Context, attributes pcommon.Map) {
 	hasURLSanitizer := s.urlSanitizer != nil
 	hasDBObfuscator := s.dbObfuscator.HasObfuscators()
 	needsProcessing := hasBlockedValues || hasURLSanitizer || hasDBObfuscator
-	
+	hasIgnoredKeys := len(s.ignoreList) > 0
+	needsKeyRedaction := !s.config.AllowAllKeys
+
 	for k, value := range attributes.All() {
-		if s.shouldIgnoreKey(k) {
+		if hasIgnoredKeys && s.shouldIgnoreKey(k) {
 			ignoredKeys = append(ignoredKeys, k)
 			continue
 		}
-		if s.shouldRedactKey(k) {
+		if needsKeyRedaction && s.shouldRedactKey(k) {
 			redactedKeys = append(redactedKeys, k)
 			continue
 		}
@@ -431,12 +540,30 @@ func (s *redaction) processAttrs(_ context.Context, attributes pcommon.Map) {
 
 // shouldMaskKeyUnchecked is an optimized version that doesn't check if list is empty
 func (s *redaction) shouldMaskKeyUnchecked(k string) bool {
+	// Check cache first - attribute keys repeat frequently
+	if cached, found := s.keyMaskCache.Load(k); found {
+		return cached.(bool)
+	}
+
+	// Not in cache, compute result
+	shouldMask := false
 	for _, compiledRE := range s.blockKeyRegexList {
 		if compiledRE.MatchString(k) {
-			return true
+			shouldMask = true
+			break
 		}
 	}
-	return false
+
+	// Cache the result for future lookups, but limit cache size
+	if s.keyMaskCacheSize.Load() < int64(maxKeyMaskCacheSize) {
+		// Use LoadOrStore to handle race condition where another goroutine
+		// might have stored the same key between our Load check and now
+		if _, loaded := s.keyMaskCache.LoadOrStore(k, shouldMask); !loaded {
+			// We successfully stored a new entry, increment the counter
+			s.keyMaskCacheSize.Add(1)
+		}
+	}
+	return shouldMask
 }
 
 // shouldAllowValueUnchecked is an optimized version that doesn't check if list is empty
@@ -516,24 +643,11 @@ func allEmptyStrings(groups []string) bool {
 
 //nolint:gosec
 func (s *redaction) maskValue(val string, regex *regexp.Regexp) string {
-	hashFunc := func(match string) string {
-		switch s.hashFunction {
-		case SHA1:
-			return hashString(match, sha1.New())
-		case SHA3:
-			return hashString(match, sha3.New256())
-		case MD5:
-			return hashString(match, md5.New())
-		default:
-			return "****"
-		}
-	}
-
 	groups := regex.SubexpNames()
 	if len(groups) == 0 || (allEmptyStrings(groups)) {
-		return regex.ReplaceAllStringFunc(val, hashFunc)
+		return regex.ReplaceAllStringFunc(val, s.cachedHashFunc)
 	} else {
-		return ReplaceAllMatchedGroups(val, regex, groups, hashFunc)
+		return ReplaceAllMatchedGroups(val, regex, groups, s.cachedHashFunc)
 	}
 }
 
@@ -618,6 +732,7 @@ func (s *redaction) processStringValueForLogBody(strVal string) string {
 			strVal = s.maskValue(strVal, compiledRE)
 		}
 	}
+
 
 	if s.urlSanitizer != nil {
 		strVal = s.urlSanitizer.SanitizeURL(strVal)
