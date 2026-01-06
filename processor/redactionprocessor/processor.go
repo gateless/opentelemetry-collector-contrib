@@ -116,6 +116,7 @@ func newRedaction(ctx context.Context, config *Config, logger *zap.Logger) (*red
 	switch config.HashFunction {
 	case SHA1:
 		cachedHashFunc = func(match string) string {
+			// #nosec G401 -- SHA1 is used for data redaction/masking, not cryptographic security
 			return hashString(match, sha1.New())
 		}
 	case SHA3:
@@ -124,10 +125,11 @@ func newRedaction(ctx context.Context, config *Config, logger *zap.Logger) (*red
 		}
 	case MD5:
 		cachedHashFunc = func(match string) string {
+			// #nosec G401 -- MD5 is used for data redaction/masking, not cryptographic security
 			return hashString(match, md5.New())
 		}
 	default:
-		cachedHashFunc = func(match string) string {
+		cachedHashFunc = func(_ string) string {
 			return "****"
 		}
 	}
@@ -286,7 +288,7 @@ func (s *redaction) processLogBody(ctx context.Context, body pcommon.Value, attr
 		}
 	case pcommon.ValueTypeSlice:
 		sliceLen := body.Slice().Len()
-		for i := 0; i < sliceLen; i++ {
+		for i := range sliceLen {
 			// Only build key path if detailed tracking is needed
 			var keyPath string
 			if needsDetailedTracking {
@@ -378,7 +380,7 @@ func (s *redaction) redactLogBodyRecursive(ctx context.Context, key string, valu
 		}
 	case pcommon.ValueTypeSlice:
 		sliceLen := value.Slice().Len()
-		for i := 0; i < sliceLen; i++ {
+		for i := range sliceLen {
 			// Only build key path if detailed tracking is needed
 			var keyWithPath string
 			if needsDetailedTracking {
@@ -641,14 +643,12 @@ func allEmptyStrings(groups []string) bool {
 	return true
 }
 
-//nolint:gosec
 func (s *redaction) maskValue(val string, regex *regexp.Regexp) string {
 	groups := regex.SubexpNames()
 	if len(groups) == 0 || (allEmptyStrings(groups)) {
 		return regex.ReplaceAllStringFunc(val, s.cachedHashFunc)
-	} else {
-		return replaceAllMatchedGroups(val, regex, groups, s.cachedHashFunc)
 	}
+	return replaceAllMatchedGroups(val, regex, groups, s.cachedHashFunc)
 }
 
 func hashString(input string, hasher hash.Hash) string {
@@ -745,20 +745,6 @@ func (s *redaction) processStringValueForLogBody(strVal string) string {
 	}
 
 	return strVal
-}
-
-func (s *redaction) shouldMaskKey(k string) bool {
-	// Early return if no blocked key patterns
-	if len(s.blockKeyRegexList) == 0 {
-		return false
-	}
-	// Mask any blocked keys for the other attributes
-	for _, compiledRE := range s.blockKeyRegexList {
-		if compiledRE.MatchString(k) {
-			return true
-		}
-	}
-	return false
 }
 
 func (s *redaction) shouldAllowValue(strVal string) bool {

@@ -1345,7 +1345,7 @@ func BenchmarkRedactSummaryDebug(b *testing.B) {
 	processor, _ := newRedaction(ctx, config, zaptest.NewLogger(b))
 
 	for b.Loop() {
-		runBenchmark(allowed, redacted, masked, ignored, processor)
+		runBenchmark(ctx, allowed, redacted, masked, ignored, processor)
 	}
 }
 
@@ -1376,12 +1376,13 @@ func BenchmarkMaskSummaryDebug(b *testing.B) {
 	processor, _ := newRedaction(ctx, config, zaptest.NewLogger(b))
 
 	for b.Loop() {
-		runBenchmark(allowed, nil, masked, ignored, processor)
+		runBenchmark(ctx, allowed, nil, masked, ignored, processor)
 	}
 }
 
 // runBenchmark transform benchmark input and runs it through the processor
 func runBenchmark(
+	ctx context.Context,
 	allowed map[string]pcommon.Value,
 	redacted map[string]pcommon.Value,
 	masked map[string]pcommon.Value,
@@ -1411,7 +1412,7 @@ func runBenchmark(
 		v.CopyTo(span.Attributes().PutEmpty(k))
 	}
 
-	_, _ = processor.processTraces(context.Background(), inBatch)
+	_, _ = processor.processTraces(ctx, inBatch)
 }
 
 func TestURLSanitizationEnabled(t *testing.T) {
