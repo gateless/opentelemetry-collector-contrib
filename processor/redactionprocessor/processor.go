@@ -458,7 +458,7 @@ func (s *redaction) processResourceMetric(ctx context.Context, rm pmetric.Resour
 // processAttrs redacts the attributes of a resource span or a span
 func (s *redaction) processAttrs(_ context.Context, attributes pcommon.Map) {
 	// TODO: Use the context for recording metrics
-	
+
 	// Early return if no attributes to process
 	if attributes.Len() == 0 {
 		return
@@ -474,7 +474,7 @@ func (s *redaction) processAttrs(_ context.Context, attributes pcommon.Map) {
 	// This sequence satisfies these performance constraints:
 	// - Only range through all attributes once
 	// - Don't mask any values if the whole attribute is slated for deletion
-	
+
 	// Cache flags to avoid repeated config/field access
 	hasBlockedKeyPatterns := len(s.blockKeyRegexList) > 0
 	hasAllowedValues := len(s.allowRegexList) > 0
@@ -494,13 +494,13 @@ func (s *redaction) processAttrs(_ context.Context, attributes pcommon.Map) {
 			redactedKeys = append(redactedKeys, k)
 			continue
 		}
-		
+
 		// Get string value once
 		strVal := value.Str()
 		if s.config.RedactAllTypes && strVal == "" {
 			strVal = value.AsString()
 		}
-		
+
 		// Skip empty strings early
 		if strVal == "" {
 			continue
@@ -516,7 +516,7 @@ func (s *redaction) processAttrs(_ context.Context, attributes pcommon.Map) {
 			value.SetStr(maskedValue)
 			continue
 		}
-		
+
 		// Only process if we have sanitizers or blocked values
 		if needsProcessing {
 			processedString := s.processStringValueForAttribute(strVal, k)
@@ -576,7 +576,7 @@ func (s *redaction) shouldAllowValueUnchecked(strVal string) bool {
 	return false
 }
 
-func ReplaceAllMatchedGroups(s string, re *regexp.Regexp, names []string, repl func(text string) string) string {
+func replaceAllMatchedGroups(s string, re *regexp.Regexp, names []string, repl func(text string) string) string {
 	matches := re.FindAllStringSubmatchIndex(s, -1)
 
 	if len(matches) == 0 {
@@ -647,7 +647,7 @@ func (s *redaction) maskValue(val string, regex *regexp.Regexp) string {
 	if len(groups) == 0 || (allEmptyStrings(groups)) {
 		return regex.ReplaceAllStringFunc(val, s.cachedHashFunc)
 	} else {
-		return ReplaceAllMatchedGroups(val, regex, groups, s.cachedHashFunc)
+		return replaceAllMatchedGroups(val, regex, groups, s.cachedHashFunc)
 	}
 }
 
@@ -732,7 +732,6 @@ func (s *redaction) processStringValueForLogBody(strVal string) string {
 			strVal = s.maskValue(strVal, compiledRE)
 		}
 	}
-
 
 	if s.urlSanitizer != nil {
 		strVal = s.urlSanitizer.SanitizeURL(strVal)

@@ -443,7 +443,7 @@ otelcontribcol: genotelcontribcol
 
 .PHONY: genotelcol
 genotelcol: $(BUILDER)
-	./internal/buildscripts/ocb-add-replaces.sh otelcol
+	./internal/buildscripts/ocb-add-gtls-replaces.sh otelcol
 	$(BUILDER) --skip-compilation --config cmd/otelcol/builder-config-replaced.yaml
 
 # Build the Collector executable.
