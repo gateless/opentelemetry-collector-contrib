@@ -155,7 +155,7 @@ func createBatchWithSensitiveData() ptrace.Traces {
 		attrs.PutStr("api_token", "sk-abc123def456")
 		attrs.PutStr("password_hash", "hashed_value_123")
 		attrs.PutStr("username", fmt.Sprintf("user%d", i))
-		
+
 		// Mix in some normal attributes
 		attrs.PutStr("request.id", fmt.Sprintf("req-%d", i))
 		attrs.PutInt("http.status_code", 200)

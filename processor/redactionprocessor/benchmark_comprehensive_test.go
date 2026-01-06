@@ -425,7 +425,7 @@ func BenchmarkConfig_RedactAllTypes(b *testing.B) {
 func BenchmarkConfig_AllowedValuesRegex(b *testing.B) {
 	config := &Config{
 		AllowAllKeys:  true,
-		BlockedValues: []string{`\d+`}, // Block all numbers
+		BlockedValues: []string{`\d+`},                 // Block all numbers
 		AllowedValues: []string{`^(200|201|404|500)$`}, // Except HTTP status codes
 		Summary:       "silent",
 	}
