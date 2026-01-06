@@ -4,7 +4,6 @@
 package redactionprocessor
 
 import (
-	"context"
 	"fmt"
 	"testing"
 
@@ -27,12 +26,12 @@ func BenchmarkProcessLogs_StringBody(b *testing.B) {
 		BlockedValues: []string{`\b(?P<mask>\d{3}-\d{2}-)(?:\d{4})\b`},
 		Summary:       "silent",
 	}
-	processor, _ := newRedaction(context.Background(), config, zaptest.NewLogger(b))
+	processor, _ := newRedaction(b.Context(), config, zaptest.NewLogger(b))
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		logs := createLogsWithStringBody()
-		_, _ = processor.processLogs(context.Background(), logs)
+		_, _ = processor.processLogs(b.Context(), logs)
 	}
 }
 
@@ -42,12 +41,12 @@ func BenchmarkProcessLogs_MapBody(b *testing.B) {
 		BlockedValues: []string{`\b(?P<mask>\d{3}-\d{2}-)(?:\d{4})\b`},
 		Summary:       "silent",
 	}
-	processor, _ := newRedaction(context.Background(), config, zaptest.NewLogger(b))
+	processor, _ := newRedaction(b.Context(), config, zaptest.NewLogger(b))
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		logs := createLogsWithMapBody()
-		_, _ = processor.processLogs(context.Background(), logs)
+		_, _ = processor.processLogs(b.Context(), logs)
 	}
 }
 
@@ -57,12 +56,12 @@ func BenchmarkProcessLogs_SliceBody(b *testing.B) {
 		BlockedValues: []string{`\b(?P<mask>\d{3}-\d{2}-)(?:\d{4})\b`},
 		Summary:       "silent",
 	}
-	processor, _ := newRedaction(context.Background(), config, zaptest.NewLogger(b))
+	processor, _ := newRedaction(b.Context(), config, zaptest.NewLogger(b))
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		logs := createLogsWithSliceBody()
-		_, _ = processor.processLogs(context.Background(), logs)
+		_, _ = processor.processLogs(b.Context(), logs)
 	}
 }
 
@@ -73,12 +72,12 @@ func BenchmarkProcessLogs_NestedMapBody(b *testing.B) {
 		BlockedValues:      []string{`\b(?P<mask>\d{3}-\d{2}-)(?:\d{4})\b`},
 		Summary:            "silent",
 	}
-	processor, _ := newRedaction(context.Background(), config, zaptest.NewLogger(b))
+	processor, _ := newRedaction(b.Context(), config, zaptest.NewLogger(b))
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		logs := createLogsWithNestedMapBody()
-		_, _ = processor.processLogs(context.Background(), logs)
+		_, _ = processor.processLogs(b.Context(), logs)
 	}
 }
 
@@ -88,12 +87,12 @@ func BenchmarkProcessLogs_HighVolume(b *testing.B) {
 		BlockedValues: []string{`\b(?P<mask>\d{3}-\d{2}-)(?:\d{4})\b`, `(?P<mask>[a-zA-Z0-9\._%+-]+)(?:@[a-zA-Z0-9\.-]+\.[a-zA-Z]{2,})`},
 		Summary:       "silent",
 	}
-	processor, _ := newRedaction(context.Background(), config, zaptest.NewLogger(b))
+	processor, _ := newRedaction(b.Context(), config, zaptest.NewLogger(b))
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		logs := createHighVolumeLogBatch()
-		_, _ = processor.processLogs(context.Background(), logs)
+		_, _ = processor.processLogs(b.Context(), logs)
 	}
 }
 
@@ -107,12 +106,12 @@ func BenchmarkProcessMetrics_Gauge(b *testing.B) {
 		BlockedValues: []string{`\b(?P<mask>\d{3}-\d{2}-)(?:\d{4})\b`},
 		Summary:       "silent",
 	}
-	processor, _ := newRedaction(context.Background(), config, zaptest.NewLogger(b))
+	processor, _ := newRedaction(b.Context(), config, zaptest.NewLogger(b))
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		metrics := createMetricsWithGauge()
-		_, _ = processor.processMetrics(context.Background(), metrics)
+		_, _ = processor.processMetrics(b.Context(), metrics)
 	}
 }
 
@@ -122,12 +121,12 @@ func BenchmarkProcessMetrics_Sum(b *testing.B) {
 		BlockedValues: []string{`\b(?P<mask>\d{3}-\d{2}-)(?:\d{4})\b`},
 		Summary:       "silent",
 	}
-	processor, _ := newRedaction(context.Background(), config, zaptest.NewLogger(b))
+	processor, _ := newRedaction(b.Context(), config, zaptest.NewLogger(b))
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		metrics := createMetricsWithSum()
-		_, _ = processor.processMetrics(context.Background(), metrics)
+		_, _ = processor.processMetrics(b.Context(), metrics)
 	}
 }
 
@@ -137,12 +136,12 @@ func BenchmarkProcessMetrics_Histogram(b *testing.B) {
 		BlockedValues: []string{`\b(?P<mask>\d{3}-\d{2}-)(?:\d{4})\b`},
 		Summary:       "silent",
 	}
-	processor, _ := newRedaction(context.Background(), config, zaptest.NewLogger(b))
+	processor, _ := newRedaction(b.Context(), config, zaptest.NewLogger(b))
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		metrics := createMetricsWithHistogram()
-		_, _ = processor.processMetrics(context.Background(), metrics)
+		_, _ = processor.processMetrics(b.Context(), metrics)
 	}
 }
 
@@ -152,12 +151,12 @@ func BenchmarkProcessMetrics_ExponentialHistogram(b *testing.B) {
 		BlockedValues: []string{`\b(?P<mask>\d{3}-\d{2}-)(?:\d{4})\b`},
 		Summary:       "silent",
 	}
-	processor, _ := newRedaction(context.Background(), config, zaptest.NewLogger(b))
+	processor, _ := newRedaction(b.Context(), config, zaptest.NewLogger(b))
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		metrics := createMetricsWithExponentialHistogram()
-		_, _ = processor.processMetrics(context.Background(), metrics)
+		_, _ = processor.processMetrics(b.Context(), metrics)
 	}
 }
 
@@ -167,12 +166,12 @@ func BenchmarkProcessMetrics_Summary(b *testing.B) {
 		BlockedValues: []string{`\b(?P<mask>\d{3}-\d{2}-)(?:\d{4})\b`},
 		Summary:       "silent",
 	}
-	processor, _ := newRedaction(context.Background(), config, zaptest.NewLogger(b))
+	processor, _ := newRedaction(b.Context(), config, zaptest.NewLogger(b))
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		metrics := createMetricsWithSummary()
-		_, _ = processor.processMetrics(context.Background(), metrics)
+		_, _ = processor.processMetrics(b.Context(), metrics)
 	}
 }
 
@@ -182,12 +181,12 @@ func BenchmarkProcessMetrics_AllTypes(b *testing.B) {
 		BlockedValues: []string{`\b(?P<mask>\d{3}-\d{2}-)(?:\d{4})\b`},
 		Summary:       "silent",
 	}
-	processor, _ := newRedaction(context.Background(), config, zaptest.NewLogger(b))
+	processor, _ := newRedaction(b.Context(), config, zaptest.NewLogger(b))
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		metrics := createMetricsWithAllTypes()
-		_, _ = processor.processMetrics(context.Background(), metrics)
+		_, _ = processor.processMetrics(b.Context(), metrics)
 	}
 }
 
@@ -202,12 +201,12 @@ func BenchmarkHashFunction_Default(b *testing.B) {
 		HashFunction:  None,
 		Summary:       "silent",
 	}
-	processor, _ := newRedaction(context.Background(), config, zaptest.NewLogger(b))
+	processor, _ := newRedaction(b.Context(), config, zaptest.NewLogger(b))
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		batch := createBatchWithSensitiveData()
-		_, _ = processor.processTraces(context.Background(), batch)
+		_, _ = processor.processTraces(b.Context(), batch)
 	}
 }
 
@@ -218,12 +217,12 @@ func BenchmarkHashFunction_SHA1(b *testing.B) {
 		HashFunction:  SHA1,
 		Summary:       "silent",
 	}
-	processor, _ := newRedaction(context.Background(), config, zaptest.NewLogger(b))
+	processor, _ := newRedaction(b.Context(), config, zaptest.NewLogger(b))
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		batch := createBatchWithSensitiveData()
-		_, _ = processor.processTraces(context.Background(), batch)
+		_, _ = processor.processTraces(b.Context(), batch)
 	}
 }
 
@@ -234,12 +233,12 @@ func BenchmarkHashFunction_SHA3(b *testing.B) {
 		HashFunction:  SHA3,
 		Summary:       "silent",
 	}
-	processor, _ := newRedaction(context.Background(), config, zaptest.NewLogger(b))
+	processor, _ := newRedaction(b.Context(), config, zaptest.NewLogger(b))
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		batch := createBatchWithSensitiveData()
-		_, _ = processor.processTraces(context.Background(), batch)
+		_, _ = processor.processTraces(b.Context(), batch)
 	}
 }
 
@@ -250,12 +249,12 @@ func BenchmarkHashFunction_MD5(b *testing.B) {
 		HashFunction:  MD5,
 		Summary:       "silent",
 	}
-	processor, _ := newRedaction(context.Background(), config, zaptest.NewLogger(b))
+	processor, _ := newRedaction(b.Context(), config, zaptest.NewLogger(b))
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		batch := createBatchWithSensitiveData()
-		_, _ = processor.processTraces(context.Background(), batch)
+		_, _ = processor.processTraces(b.Context(), batch)
 	}
 }
 
@@ -271,12 +270,12 @@ func BenchmarkURLSanitization_Disabled(b *testing.B) {
 		},
 		Summary: "silent",
 	}
-	processor, _ := newRedaction(context.Background(), config, zaptest.NewLogger(b))
+	processor, _ := newRedaction(b.Context(), config, zaptest.NewLogger(b))
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		batch := createBatchWithURLs()
-		_, _ = processor.processTraces(context.Background(), batch)
+		_, _ = processor.processTraces(b.Context(), batch)
 	}
 }
 
@@ -288,12 +287,12 @@ func BenchmarkURLSanitization_Enabled(b *testing.B) {
 		},
 		Summary: "silent",
 	}
-	processor, _ := newRedaction(context.Background(), config, zaptest.NewLogger(b))
+	processor, _ := newRedaction(b.Context(), config, zaptest.NewLogger(b))
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		batch := createBatchWithURLs()
-		_, _ = processor.processTraces(context.Background(), batch)
+		_, _ = processor.processTraces(b.Context(), batch)
 	}
 }
 
@@ -305,12 +304,12 @@ func BenchmarkURLSanitization_SpanNames(b *testing.B) {
 		},
 		Summary: "silent",
 	}
-	processor, _ := newRedaction(context.Background(), config, zaptest.NewLogger(b))
+	processor, _ := newRedaction(b.Context(), config, zaptest.NewLogger(b))
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		batch := createBatchWithURLSpanNames()
-		_, _ = processor.processTraces(context.Background(), batch)
+		_, _ = processor.processTraces(b.Context(), batch)
 	}
 }
 
@@ -324,12 +323,12 @@ func BenchmarkDBObfuscation_Disabled(b *testing.B) {
 		DBSanitizer:  db.DBSanitizerConfig{},
 		Summary:      "silent",
 	}
-	processor, _ := newRedaction(context.Background(), config, zaptest.NewLogger(b))
+	processor, _ := newRedaction(b.Context(), config, zaptest.NewLogger(b))
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		batch := createBatchWithDBQueries()
-		_, _ = processor.processTraces(context.Background(), batch)
+		_, _ = processor.processTraces(b.Context(), batch)
 	}
 }
 
@@ -344,12 +343,12 @@ func BenchmarkDBObfuscation_Enabled(b *testing.B) {
 		},
 		Summary: "silent",
 	}
-	processor, _ := newRedaction(context.Background(), config, zaptest.NewLogger(b))
+	processor, _ := newRedaction(b.Context(), config, zaptest.NewLogger(b))
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		batch := createBatchWithDBQueries()
-		_, _ = processor.processTraces(context.Background(), batch)
+		_, _ = processor.processTraces(b.Context(), batch)
 	}
 }
 
@@ -363,12 +362,12 @@ func BenchmarkDBObfuscation_SpanNames(b *testing.B) {
 		},
 		Summary: "silent",
 	}
-	processor, _ := newRedaction(context.Background(), config, zaptest.NewLogger(b))
+	processor, _ := newRedaction(b.Context(), config, zaptest.NewLogger(b))
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		batch := createBatchWithDBSpanNames()
-		_, _ = processor.processTraces(context.Background(), batch)
+		_, _ = processor.processTraces(b.Context(), batch)
 	}
 }
 
@@ -382,12 +381,12 @@ func BenchmarkConfig_AllowAllKeys(b *testing.B) {
 		BlockedValues: []string{`\b(?P<mask>\d{3}-\d{2}-)(?:\d{4})\b`},
 		Summary:       "silent",
 	}
-	processor, _ := newRedaction(context.Background(), config, zaptest.NewLogger(b))
+	processor, _ := newRedaction(b.Context(), config, zaptest.NewLogger(b))
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		batch := createRealisticBatch()
-		_, _ = processor.processTraces(context.Background(), batch)
+		_, _ = processor.processTraces(b.Context(), batch)
 	}
 }
 
@@ -397,12 +396,12 @@ func BenchmarkConfig_AllowedKeysList(b *testing.B) {
 		BlockedValues: []string{`\b(?P<mask>\d{3}-\d{2}-)(?:\d{4})\b`},
 		Summary:       "silent",
 	}
-	processor, _ := newRedaction(context.Background(), config, zaptest.NewLogger(b))
+	processor, _ := newRedaction(b.Context(), config, zaptest.NewLogger(b))
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		batch := createRealisticBatch()
-		_, _ = processor.processTraces(context.Background(), batch)
+		_, _ = processor.processTraces(b.Context(), batch)
 	}
 }
 
@@ -413,12 +412,12 @@ func BenchmarkConfig_RedactAllTypes(b *testing.B) {
 		BlockedValues:  []string{`\b(?P<mask>\d{3}-\d{2}-)(?:\d{4})\b`},
 		Summary:        "silent",
 	}
-	processor, _ := newRedaction(context.Background(), config, zaptest.NewLogger(b))
+	processor, _ := newRedaction(b.Context(), config, zaptest.NewLogger(b))
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		batch := createBatchWithMixedTypes()
-		_, _ = processor.processTraces(context.Background(), batch)
+		_, _ = processor.processTraces(b.Context(), batch)
 	}
 }
 
@@ -429,12 +428,12 @@ func BenchmarkConfig_AllowedValuesRegex(b *testing.B) {
 		AllowedValues: []string{`^(200|201|404|500)$`}, // Except HTTP status codes
 		Summary:       "silent",
 	}
-	processor, _ := newRedaction(context.Background(), config, zaptest.NewLogger(b))
+	processor, _ := newRedaction(b.Context(), config, zaptest.NewLogger(b))
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		batch := createRealisticBatch()
-		_, _ = processor.processTraces(context.Background(), batch)
+		_, _ = processor.processTraces(b.Context(), batch)
 	}
 }
 
@@ -444,12 +443,12 @@ func BenchmarkConfig_SummaryDebug(b *testing.B) {
 		BlockedKeyPatterns: []string{".*token.*", ".*password.*"},
 		Summary:            "debug",
 	}
-	processor, _ := newRedaction(context.Background(), config, zaptest.NewLogger(b))
+	processor, _ := newRedaction(b.Context(), config, zaptest.NewLogger(b))
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		batch := createBatchWithSensitiveData()
-		_, _ = processor.processTraces(context.Background(), batch)
+		_, _ = processor.processTraces(b.Context(), batch)
 	}
 }
 
@@ -459,12 +458,12 @@ func BenchmarkConfig_SummaryInfo(b *testing.B) {
 		BlockedKeyPatterns: []string{".*token.*", ".*password.*"},
 		Summary:            "info",
 	}
-	processor, _ := newRedaction(context.Background(), config, zaptest.NewLogger(b))
+	processor, _ := newRedaction(b.Context(), config, zaptest.NewLogger(b))
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		batch := createBatchWithSensitiveData()
-		_, _ = processor.processTraces(context.Background(), batch)
+		_, _ = processor.processTraces(b.Context(), batch)
 	}
 }
 
@@ -474,12 +473,12 @@ func BenchmarkConfig_SummarySilent(b *testing.B) {
 		BlockedKeyPatterns: []string{".*token.*", ".*password.*"},
 		Summary:            "silent",
 	}
-	processor, _ := newRedaction(context.Background(), config, zaptest.NewLogger(b))
+	processor, _ := newRedaction(b.Context(), config, zaptest.NewLogger(b))
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		batch := createBatchWithSensitiveData()
-		_, _ = processor.processTraces(context.Background(), batch)
+		_, _ = processor.processTraces(b.Context(), batch)
 	}
 }
 
@@ -492,7 +491,7 @@ func createLogsWithStringBody() plog.Logs {
 	rl := logs.ResourceLogs().AppendEmpty()
 	sl := rl.ScopeLogs().AppendEmpty()
 
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		log := sl.LogRecords().AppendEmpty()
 		log.Body().SetStr(fmt.Sprintf("User SSN: 123-45-6789, Request ID: %d", i))
 		log.Attributes().PutStr("service.name", "test-service")
@@ -506,7 +505,7 @@ func createLogsWithMapBody() plog.Logs {
 	rl := logs.ResourceLogs().AppendEmpty()
 	sl := rl.ScopeLogs().AppendEmpty()
 
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		log := sl.LogRecords().AppendEmpty()
 		bodyMap := log.Body().SetEmptyMap()
 		bodyMap.PutStr("message", fmt.Sprintf("Request %d processed", i))
@@ -523,7 +522,7 @@ func createLogsWithSliceBody() plog.Logs {
 	rl := logs.ResourceLogs().AppendEmpty()
 	sl := rl.ScopeLogs().AppendEmpty()
 
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		log := sl.LogRecords().AppendEmpty()
 		bodySlice := log.Body().SetEmptySlice()
 		bodySlice.AppendEmpty().SetStr(fmt.Sprintf("Event %d", i))
@@ -539,7 +538,7 @@ func createLogsWithNestedMapBody() plog.Logs {
 	rl := logs.ResourceLogs().AppendEmpty()
 	sl := rl.ScopeLogs().AppendEmpty()
 
-	for i := 0; i < 50; i++ {
+	for i := range 50 {
 		log := sl.LogRecords().AppendEmpty()
 		bodyMap := log.Body().SetEmptyMap()
 		bodyMap.PutStr("message", fmt.Sprintf("Request %d", i))
@@ -562,12 +561,12 @@ func createLogsWithNestedMapBody() plog.Logs {
 func createHighVolumeLogBatch() plog.Logs {
 	logs := plog.NewLogs()
 
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		rl := logs.ResourceLogs().AppendEmpty()
 		rl.Resource().Attributes().PutStr("service.name", fmt.Sprintf("service-%d", i))
 
 		sl := rl.ScopeLogs().AppendEmpty()
-		for j := 0; j < 100; j++ {
+		for j := range 100 {
 			log := sl.LogRecords().AppendEmpty()
 			log.Body().SetStr(fmt.Sprintf("Log message %d with email user%d@example.com and SSN 123-45-6789", j, j))
 			log.Attributes().PutStr("user.id", fmt.Sprintf("user-%d", j))
@@ -583,12 +582,12 @@ func createMetricsWithGauge() pmetric.Metrics {
 	rm := metrics.ResourceMetrics().AppendEmpty()
 	sm := rm.ScopeMetrics().AppendEmpty()
 
-	for i := 0; i < 50; i++ {
+	for i := range 50 {
 		metric := sm.Metrics().AppendEmpty()
 		metric.SetName(fmt.Sprintf("gauge_metric_%d", i))
 		gauge := metric.SetEmptyGauge()
 
-		for j := 0; j < 10; j++ {
+		for j := range 10 {
 			dp := gauge.DataPoints().AppendEmpty()
 			dp.SetIntValue(int64(j * 100))
 			dp.Attributes().PutStr("label", fmt.Sprintf("value-%d", j))
@@ -604,12 +603,12 @@ func createMetricsWithSum() pmetric.Metrics {
 	rm := metrics.ResourceMetrics().AppendEmpty()
 	sm := rm.ScopeMetrics().AppendEmpty()
 
-	for i := 0; i < 50; i++ {
+	for i := range 50 {
 		metric := sm.Metrics().AppendEmpty()
 		metric.SetName(fmt.Sprintf("sum_metric_%d", i))
 		sum := metric.SetEmptySum()
 
-		for j := 0; j < 10; j++ {
+		for j := range 10 {
 			dp := sum.DataPoints().AppendEmpty()
 			dp.SetIntValue(int64(j * 100))
 			dp.Attributes().PutStr("label", fmt.Sprintf("value-%d", j))
@@ -625,12 +624,12 @@ func createMetricsWithHistogram() pmetric.Metrics {
 	rm := metrics.ResourceMetrics().AppendEmpty()
 	sm := rm.ScopeMetrics().AppendEmpty()
 
-	for i := 0; i < 50; i++ {
+	for i := range 50 {
 		metric := sm.Metrics().AppendEmpty()
 		metric.SetName(fmt.Sprintf("histogram_metric_%d", i))
 		histogram := metric.SetEmptyHistogram()
 
-		for j := 0; j < 10; j++ {
+		for j := range 10 {
 			dp := histogram.DataPoints().AppendEmpty()
 			dp.SetCount(uint64(j * 10))
 			dp.SetSum(float64(j * 100))
@@ -646,12 +645,12 @@ func createMetricsWithExponentialHistogram() pmetric.Metrics {
 	rm := metrics.ResourceMetrics().AppendEmpty()
 	sm := rm.ScopeMetrics().AppendEmpty()
 
-	for i := 0; i < 50; i++ {
+	for i := range 50 {
 		metric := sm.Metrics().AppendEmpty()
 		metric.SetName(fmt.Sprintf("exp_histogram_metric_%d", i))
 		expHistogram := metric.SetEmptyExponentialHistogram()
 
-		for j := 0; j < 10; j++ {
+		for j := range 10 {
 			dp := expHistogram.DataPoints().AppendEmpty()
 			dp.SetCount(uint64(j * 10))
 			dp.SetSum(float64(j * 100))
@@ -667,12 +666,12 @@ func createMetricsWithSummary() pmetric.Metrics {
 	rm := metrics.ResourceMetrics().AppendEmpty()
 	sm := rm.ScopeMetrics().AppendEmpty()
 
-	for i := 0; i < 50; i++ {
+	for i := range 50 {
 		metric := sm.Metrics().AppendEmpty()
 		metric.SetName(fmt.Sprintf("summary_metric_%d", i))
 		summary := metric.SetEmptySummary()
 
-		for j := 0; j < 10; j++ {
+		for j := range 10 {
 			dp := summary.DataPoints().AppendEmpty()
 			dp.SetCount(uint64(j * 10))
 			dp.SetSum(float64(j * 100))
@@ -692,7 +691,7 @@ func createMetricsWithAllTypes() pmetric.Metrics {
 	gaugeMetric := sm.Metrics().AppendEmpty()
 	gaugeMetric.SetName("gauge_metric")
 	gauge := gaugeMetric.SetEmptyGauge()
-	for i := 0; i < 20; i++ {
+	for i := range 20 {
 		dp := gauge.DataPoints().AppendEmpty()
 		dp.SetIntValue(int64(i))
 		dp.Attributes().PutStr("id", fmt.Sprintf("id-%d", i))
@@ -702,7 +701,7 @@ func createMetricsWithAllTypes() pmetric.Metrics {
 	sumMetric := sm.Metrics().AppendEmpty()
 	sumMetric.SetName("sum_metric")
 	sum := sumMetric.SetEmptySum()
-	for i := 0; i < 20; i++ {
+	for i := range 20 {
 		dp := sum.DataPoints().AppendEmpty()
 		dp.SetIntValue(int64(i * 10))
 		dp.Attributes().PutStr("id", fmt.Sprintf("id-%d", i))
@@ -712,7 +711,7 @@ func createMetricsWithAllTypes() pmetric.Metrics {
 	histMetric := sm.Metrics().AppendEmpty()
 	histMetric.SetName("histogram_metric")
 	hist := histMetric.SetEmptyHistogram()
-	for i := 0; i < 20; i++ {
+	for i := range 20 {
 		dp := hist.DataPoints().AppendEmpty()
 		dp.SetCount(uint64(i * 10))
 		dp.Attributes().PutStr("id", fmt.Sprintf("id-%d", i))
@@ -722,7 +721,7 @@ func createMetricsWithAllTypes() pmetric.Metrics {
 	expHistMetric := sm.Metrics().AppendEmpty()
 	expHistMetric.SetName("exp_histogram_metric")
 	expHist := expHistMetric.SetEmptyExponentialHistogram()
-	for i := 0; i < 20; i++ {
+	for i := range 20 {
 		dp := expHist.DataPoints().AppendEmpty()
 		dp.SetCount(uint64(i * 10))
 		dp.Attributes().PutStr("id", fmt.Sprintf("id-%d", i))
@@ -732,7 +731,7 @@ func createMetricsWithAllTypes() pmetric.Metrics {
 	summaryMetric := sm.Metrics().AppendEmpty()
 	summaryMetric.SetName("summary_metric")
 	summary := summaryMetric.SetEmptySummary()
-	for i := 0; i < 20; i++ {
+	for i := range 20 {
 		dp := summary.DataPoints().AppendEmpty()
 		dp.SetCount(uint64(i * 10))
 		dp.Attributes().PutStr("id", fmt.Sprintf("id-%d", i))
@@ -746,7 +745,7 @@ func createBatchWithURLs() ptrace.Traces {
 	rs := batch.ResourceSpans().AppendEmpty()
 	ils := rs.ScopeSpans().AppendEmpty()
 
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		span := ils.Spans().AppendEmpty()
 		span.SetName(fmt.Sprintf("span-%d", i))
 		span.SetTraceID([16]byte{byte(i), 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15})
@@ -765,7 +764,7 @@ func createBatchWithURLSpanNames() ptrace.Traces {
 	rs := batch.ResourceSpans().AppendEmpty()
 	ils := rs.ScopeSpans().AppendEmpty()
 
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		span := ils.Spans().AppendEmpty()
 		span.SetName(fmt.Sprintf("GET /api/users/123e4567-e89b-12d3-a456-%012d/profile", i))
 		span.SetKind(ptrace.SpanKindServer)
@@ -780,7 +779,7 @@ func createBatchWithDBQueries() ptrace.Traces {
 	rs := batch.ResourceSpans().AppendEmpty()
 	ils := rs.ScopeSpans().AppendEmpty()
 
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		span := ils.Spans().AppendEmpty()
 		span.SetName(fmt.Sprintf("span-%d", i))
 		span.SetTraceID([16]byte{byte(i), 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15})
@@ -799,7 +798,7 @@ func createBatchWithDBSpanNames() ptrace.Traces {
 	rs := batch.ResourceSpans().AppendEmpty()
 	ils := rs.ScopeSpans().AppendEmpty()
 
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		span := ils.Spans().AppendEmpty()
 		span.SetName(fmt.Sprintf("SELECT * FROM users WHERE id = %d", i))
 		span.SetKind(ptrace.SpanKindClient)
@@ -817,7 +816,7 @@ func createBatchWithMixedTypes() ptrace.Traces {
 	rs := batch.ResourceSpans().AppendEmpty()
 	ils := rs.ScopeSpans().AppendEmpty()
 
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		span := ils.Spans().AppendEmpty()
 		span.SetName(fmt.Sprintf("span-%d", i))
 		span.SetTraceID([16]byte{byte(i), 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15})

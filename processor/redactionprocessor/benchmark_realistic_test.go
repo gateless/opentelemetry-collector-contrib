@@ -4,7 +4,6 @@
 package redactionprocessor
 
 import (
-	"context"
 	"fmt"
 	"testing"
 
@@ -47,12 +46,12 @@ func BenchmarkRealisticConfig(b *testing.B) {
 		Summary: "silent",
 	}
 
-	processor, _ := newRedaction(context.Background(), config, zaptest.NewLogger(b))
+	processor, _ := newRedaction(b.Context(), config, zaptest.NewLogger(b))
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		inBatch := createRealisticBatch()
-		_, _ = processor.processTraces(context.Background(), inBatch)
+		_, _ = processor.processTraces(b.Context(), inBatch)
 	}
 }
 
@@ -84,12 +83,12 @@ func BenchmarkRealisticConfigWithHits(b *testing.B) {
 		Summary: "silent",
 	}
 
-	processor, _ := newRedaction(context.Background(), config, zaptest.NewLogger(b))
+	processor, _ := newRedaction(b.Context(), config, zaptest.NewLogger(b))
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		inBatch := createBatchWithSensitiveData()
-		_, _ = processor.processTraces(context.Background(), inBatch)
+		_, _ = processor.processTraces(b.Context(), inBatch)
 	}
 }
 
@@ -97,7 +96,7 @@ func createRealisticBatch() ptrace.Traces {
 	batch := ptrace.NewTraces()
 
 	// Create 10 resource spans
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		rs := batch.ResourceSpans().AppendEmpty()
 
 		rs.Resource().Attributes().PutStr("service.name", fmt.Sprintf("service-%d", i))
@@ -105,7 +104,7 @@ func createRealisticBatch() ptrace.Traces {
 
 		ils := rs.ScopeSpans().AppendEmpty()
 		// 50 spans per resource
-		for j := 0; j < 50; j++ {
+		for j := range 50 {
 			span := ils.Spans().AppendEmpty()
 			span.SetName(fmt.Sprintf("operation-%d", j))
 			span.SetTraceID([16]byte{byte(i), byte(j), 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14})
@@ -139,7 +138,7 @@ func createBatchWithSensitiveData() ptrace.Traces {
 	rs := batch.ResourceSpans().AppendEmpty()
 	ils := rs.ScopeSpans().AppendEmpty()
 
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		span := ils.Spans().AppendEmpty()
 		span.SetName(fmt.Sprintf("span-%d", i))
 		span.SetTraceID([16]byte{byte(i), 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15})

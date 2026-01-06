@@ -4,7 +4,6 @@
 package redactionprocessor
 
 import (
-	"context"
 	"fmt"
 	"testing"
 
@@ -24,12 +23,12 @@ func BenchmarkRealisticWorkload(b *testing.B) {
 		Summary:       "info", // Use info instead of debug to reduce overhead
 	}
 
-	processor, _ := newRedaction(context.Background(), config, zaptest.NewLogger(b))
+	processor, _ := newRedaction(b.Context(), config, zaptest.NewLogger(b))
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		inBatch := createRealisticBatch()
-		_, _ = processor.processTraces(context.Background(), inBatch)
+		_, _ = processor.processTraces(b.Context(), inBatch)
 	}
 }
 
@@ -41,12 +40,12 @@ func BenchmarkHighVolumeAttributes(b *testing.B) {
 		Summary:       "silent",
 	}
 
-	processor, _ := newRedaction(context.Background(), config, zaptest.NewLogger(b))
+	processor, _ := newRedaction(b.Context(), config, zaptest.NewLogger(b))
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		inBatch := createHighVolumeAttributesBatch()
-		_, _ = processor.processTraces(context.Background(), inBatch)
+		_, _ = processor.processTraces(b.Context(), inBatch)
 	}
 }
 
@@ -64,12 +63,12 @@ func BenchmarkComplexRegex(b *testing.B) {
 		Summary: "silent",
 	}
 
-	processor, _ := newRedaction(context.Background(), config, zaptest.NewLogger(b))
+	processor, _ := newRedaction(b.Context(), config, zaptest.NewLogger(b))
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		inBatch := createBatchWithSensitiveData()
-		_, _ = processor.processTraces(context.Background(), inBatch)
+		_, _ = processor.processTraces(b.Context(), inBatch)
 	}
 }
 
@@ -80,12 +79,12 @@ func BenchmarkNoRedactionNeeded(b *testing.B) {
 		Summary:      "silent",
 	}
 
-	processor, _ := newRedaction(context.Background(), config, zaptest.NewLogger(b))
+	processor, _ := newRedaction(b.Context(), config, zaptest.NewLogger(b))
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		inBatch := createRealisticBatch()
-		_, _ = processor.processTraces(context.Background(), inBatch)
+		_, _ = processor.processTraces(b.Context(), inBatch)
 	}
 }
 
@@ -100,7 +99,7 @@ func createHighVolumeAttributesBatch() ptrace.Traces {
 	span.SetTraceID([16]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16})
 
 	attrs := span.Attributes()
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		attrs.PutStr(fmt.Sprintf("attr.%d", i), fmt.Sprintf("value-%d", i))
 	}
 

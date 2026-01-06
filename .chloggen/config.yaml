@@ -11,6 +11,7 @@ components:
     - cmd/codecovgen
     - cmd/golden
     - cmd/opampsupervisor
+    - cmd/otelcol
     - cmd/otelcontribcol
     - cmd/oteltestbedcol
     - cmd/schemagen
